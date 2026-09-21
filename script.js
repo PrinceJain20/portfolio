@@ -266,45 +266,82 @@ document.addEventListener('DOMContentLoaded', () => {
     window.print();
   };
 
+  // Helper for Local Messages Store (Static / Offline fallback)
+  function getLocalMessages() {
+    try {
+      return JSON.parse(localStorage.getItem('portfolio_local_messages') || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  function saveLocalMessage(msg) {
+    const msgs = getLocalMessages();
+    msgs.unshift(msg);
+    localStorage.setItem('portfolio_local_messages', JSON.stringify(msgs));
+    updateMessageCountBadge();
+    return msgs;
+  }
+
+  function removeLocalMessage(id) {
+    const msgs = getLocalMessages().filter(m => m.id !== id);
+    localStorage.setItem('portfolio_local_messages', JSON.stringify(msgs));
+    updateMessageCountBadge();
+    return msgs;
+  }
+
   // 11. Backend API Ping & Live Health Check
+  let isBackendLive = false;
   async function checkBackendHealth() {
     const statusText = document.getElementById('backend-status-text');
     const statusPill = document.getElementById('backend-status-pill');
     try {
       const res = await fetch('/api/health');
       if (res.ok) {
+        isBackendLive = true;
         if (statusText) statusText.textContent = 'API Live';
-        if (statusPill) statusPill.title = 'Node.js Express Backend is Active';
+        if (statusPill) {
+          statusPill.title = 'Node.js Express Backend / Serverless API is Active';
+          statusPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+          statusPill.style.color = '#34d399';
+        }
         updateMessageCountBadge();
       } else {
-        throw new Error('API degraded');
+        throw new Error('API non-200');
       }
     } catch {
-      if (statusText) statusText.textContent = 'Static Mode';
+      isBackendLive = false;
+      if (statusText) statusText.textContent = 'Static / Edge';
       if (statusPill) {
-        statusPill.style.borderColor = 'rgba(244, 63, 94, 0.4)';
-        statusPill.style.color = '#fb7185';
+        statusPill.title = 'Running in Static Mode (Local storage & direct dispatch active)';
+        statusPill.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+        statusPill.style.color = '#38bdf8';
       }
+      updateMessageCountBadge();
     }
   }
   checkBackendHealth();
 
   // 12. Message Count Badge Updater
   async function updateMessageCountBadge() {
+    const footerCount = document.getElementById('footer-msg-count');
+    let count = getLocalMessages().length;
+
     try {
       const res = await fetch('/api/messages');
       if (res.ok) {
         const data = await res.json();
-        const count = data.total || (data.messages ? data.messages.length : 0);
-        const footerCount = document.getElementById('footer-msg-count');
-        if (footerCount) footerCount.textContent = count;
+        const serverCount = data.total || (data.messages ? data.messages.length : 0);
+        count = Math.max(count, serverCount);
       }
     } catch {
-      // Ignored if offline
+      // Use local count in static mode
     }
+
+    if (footerCount) footerCount.textContent = count;
   }
 
-  // 13. Contact Form AJAX Submission with Backend REST API
+  // 13. Contact Form Submission with Hybrid API & Offline Fallback
   const contactForm = document.getElementById('contact-form');
   const submitBtn = document.getElementById('contact-submit-btn');
   const formFeedback = document.getElementById('form-feedback');
@@ -347,34 +384,48 @@ document.addEventListener('DOMContentLoaded', () => {
       setFormLoading(true);
       hideFormFeedback();
 
+      const payload = { name, email, subject, message };
+
       try {
         const response = await fetch('/api/contact', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ name, email, subject, message })
+          body: JSON.stringify(payload)
         });
 
-        const result = await response.json();
+        const result = await response.json().catch(() => null);
 
-        if (response.ok && result.success) {
+        if (response.ok && result && result.success) {
           contactForm.reset();
           showFormFeedback(`Thank you, ${name}! Your message has been safely received by Prince.`, false);
           showToast('Message sent successfully! Prince will respond shortly.', false);
           updateMessageCountBadge();
         } else {
-          throw new Error(result.error || 'Server error occurred.');
+          throw new Error((result && result.error) || `Server responded with status ${response.status}`);
         }
       } catch (err) {
-        console.warn('Backend API unreachable or returned error. Falling back to email client:', err);
-        // Graceful fallback to mailto
-        const mailtoBody = `Hi Prince,\n\nName: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
-        const mailtoUrl = `mailto:princejain9294@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
+        console.warn('Backend API unreachable or static mode. Storing locally and providing direct mail option:', err);
         
-        showFormFeedback('Direct API unavailable; launching your default email client...', false);
-        window.location.href = mailtoUrl;
-        showToast('Opening default email application...', false);
+        // Save to persistent local session
+        const localMsg = {
+          id: 'local_' + Date.now(),
+          name,
+          email,
+          subject,
+          message,
+          createdAt: new Date().toISOString(),
+          isLocal: true
+        };
+        saveLocalMessage(localMsg);
+        contactForm.reset();
+
+        const mailtoUrl = `mailto:princejain9294@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`Hi Prince,\n\nName: ${name}\nEmail: ${email}\n\nMessage:\n${message}`)}`;
+        
+        showFormFeedback(`Message stored in your session inbox! Click below if you'd also like to send directly to Prince's inbox: <a href="${mailtoUrl}" style="color: var(--accent-cyan); text-decoration: underline; margin-left: 0.25rem;">Send via Email</a>`, false);
+        showToast('Message saved! Prince can also be contacted directly at princejain9294@gmail.com', false);
+        updateMessageCountBadge();
       } finally {
         setFormLoading(false);
       }
@@ -399,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showFormFeedback(msg, isError) {
     if (!formFeedback) return;
-    formFeedback.textContent = msg;
+    formFeedback.innerHTML = msg;
     formFeedback.className = isError ? 'form-feedback error' : 'form-feedback success';
     formFeedback.style.display = 'flex';
   }
@@ -409,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
     formFeedback.style.display = 'none';
   }
 
-  // 14. Fetch & Render Backend Messages for Inbox Modal
+  // 14. Fetch & Render Messages for Inbox Modal (Hybrid API + Local Fallback)
   window.fetchMessages = async function() {
     const listContainer = document.getElementById('inbox-messages-list');
     if (!listContainer) return;
@@ -417,88 +468,102 @@ document.addEventListener('DOMContentLoaded', () => {
     listContainer.innerHTML = `
       <div style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
         <i class="fas fa-circle-notch fa-spin fa-2x"></i>
-        <p style="margin-top: 0.75rem;">Retrieving messages from persistent store...</p>
+        <p style="margin-top: 0.75rem;">Retrieving messages...</p>
       </div>
     `;
 
+    let allMessages = [];
+    const localMsgs = getLocalMessages();
+
     try {
       const res = await fetch('/api/messages');
-      if (!res.ok) throw new Error('Failed to retrieve messages');
-      const data = await res.json();
-      const messages = data.messages || [];
-
-      // Update badge
-      const footerCount = document.getElementById('footer-msg-count');
-      if (footerCount) footerCount.textContent = messages.length;
-
-      if (messages.length === 0) {
-        listContainer.innerHTML = `
-          <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
-            <i class="fas fa-envelope-open" style="font-size: 3rem; margin-bottom: 1rem; color: var(--border-glow);"></i>
-            <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">No Inquiries Yet</h4>
-            <p>Any messages submitted via the Contact form will appear here in real-time.</p>
-          </div>
-        `;
-        return;
+      if (res.ok) {
+        const data = await res.json();
+        const serverMsgs = data.messages || [];
+        // Merge without duplicates
+        const seenIds = new Set(serverMsgs.map(m => m.id));
+        const uniqueLocal = localMsgs.filter(m => !seenIds.has(m.id));
+        allMessages = [...uniqueLocal, ...serverMsgs];
+      } else {
+        throw new Error('API offline');
       }
+    } catch {
+      // Static / offline mode
+      allMessages = localMsgs;
+    }
 
-      listContainer.innerHTML = messages.map(msg => {
-        const dateFormatted = new Date(msg.createdAt).toLocaleString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+    // Update badge
+    const footerCount = document.getElementById('footer-msg-count');
+    if (footerCount) footerCount.textContent = allMessages.length;
 
-        return `
-          <div class="inbox-card" id="inbox-card-${msg.id}">
-            <div class="inbox-meta">
-              <div class="inbox-sender">
-                <i class="fas fa-user-circle" style="color: var(--accent-primary); margin-right: 0.35rem;"></i>
-                ${escapeHTML(msg.name)}
-                <a href="mailto:${escapeHTML(msg.email)}" style="font-size: 0.85rem; color: var(--accent-cyan); font-weight: normal; margin-left: 0.5rem; text-decoration: none;">
-                  &lt;${escapeHTML(msg.email)}&gt;
-                </a>
-              </div>
-              <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <span class="inbox-time"><i class="fas fa-clock"></i> ${dateFormatted}</span>
-                <button onclick="deleteMessage('${msg.id}')" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" title="Delete message">
-                  <i class="fas fa-trash-can" style="color: var(--accent-rose);"></i>
-                </button>
-              </div>
-            </div>
-            <div class="inbox-subject">Subject: ${escapeHTML(msg.subject)}</div>
-            <div class="inbox-msg">${escapeHTML(msg.message)}</div>
-          </div>
-        `;
-      }).join('');
-
-    } catch (err) {
+    if (allMessages.length === 0) {
       listContainer.innerHTML = `
-        <div style="text-align: center; padding: 2.5rem; color: var(--accent-rose);">
-          <i class="fas fa-triangle-exclamation fa-2x" style="margin-bottom: 0.5rem;"></i>
-          <p>Could not fetch messages. Please ensure the Express backend is running.</p>
+        <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+          <i class="fas fa-envelope-open" style="font-size: 3rem; margin-bottom: 1rem; color: var(--border-glow);"></i>
+          <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">No Inquiries Yet</h4>
+          <p>Any messages submitted via the Contact form will appear here in real-time.</p>
         </div>
       `;
+      return;
     }
+
+    listContainer.innerHTML = allMessages.map(msg => {
+      const dateFormatted = new Date(msg.createdAt).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const isLocal = msg.isLocal || String(msg.id).startsWith('local_');
+
+      return `
+        <div class="inbox-card" id="inbox-card-${msg.id}">
+          <div class="inbox-meta">
+            <div class="inbox-sender">
+              <i class="fas fa-user-circle" style="color: var(--accent-primary); margin-right: 0.35rem;"></i>
+              ${escapeHTML(msg.name)}
+              <a href="mailto:${escapeHTML(msg.email)}" style="font-size: 0.85rem; color: var(--accent-cyan); font-weight: normal; margin-left: 0.5rem; text-decoration: none;">
+                &lt;${escapeHTML(msg.email)}&gt;
+              </a>
+              ${isLocal ? '<span class="badge" style="font-size: 0.7rem; padding: 0.15rem 0.4rem; margin-left: 0.5rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">Session Store</span>' : ''}
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span class="inbox-time"><i class="fas fa-clock"></i> ${dateFormatted}</span>
+              <button onclick="deleteMessage('${msg.id}')" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" title="Delete message">
+                <i class="fas fa-trash-can" style="color: var(--accent-rose);"></i>
+              </button>
+            </div>
+          </div>
+          <div class="inbox-subject">Subject: ${escapeHTML(msg.subject)}</div>
+          <div class="inbox-msg">${escapeHTML(msg.message)}</div>
+        </div>
+      `;
+    }).join('');
   };
 
-  // Delete message function
+  // Delete message function (API + Local)
   window.deleteMessage = async function(id) {
     if (!confirm('Are you sure you want to delete this message?')) return;
+    
+    // Always remove from local store if present
+    removeLocalMessage(id);
+
     try {
-      const res = await fetch(`/api/messages/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        showToast('Message deleted successfully.', false);
-        const card = document.getElementById(`inbox-card-${id}`);
-        if (card) card.remove();
-        updateMessageCountBadge();
-      } else {
-        throw new Error('Deletion failed');
+      if (!String(id).startsWith('local_')) {
+        await fetch(`/api/messages/${id}`, { method: 'DELETE' });
       }
+      showToast('Message deleted successfully.', false);
+      const card = document.getElementById(`inbox-card-${id}`);
+      if (card) card.remove();
+      updateMessageCountBadge();
     } catch (err) {
-      showToast('Could not delete message.', true);
+      // Local removal was still successful
+      const card = document.getElementById(`inbox-card-${id}`);
+      if (card) card.remove();
+      showToast('Message removed from local session.', false);
+      updateMessageCountBadge();
     }
   };
 

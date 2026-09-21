@@ -1,5 +1,32 @@
 [
   {
+    "id": "msg_1790011881199_t1l4c",
+    "name": "Reviewer Test",
+    "email": "reviewer@directweb.com",
+    "subject": "Testing Direct URL",
+    "message": "Testing contact submission via clean Cloudflare URL without warning page.",
+    "createdAt": "2026-09-21T17:31:21.199Z",
+    "ip": "::1"
+  },
+  {
+    "id": "msg_1790011652343_lztqr",
+    "name": "Direct Visitor",
+    "email": "visitor@directweb.com",
+    "subject": "Clean Cloudflare URL Test",
+    "message": "Direct access verified without any warning screen! Fast and pristine.",
+    "createdAt": "2026-09-21T17:27:32.343Z",
+    "ip": "::1"
+  },
+  {
+    "id": "msg_1790011369647_jm163",
+    "name": "Public Recruiter",
+    "email": "recruiter@globaltalent.com",
+    "subject": "Full Stack Opportunity Inquiry",
+    "message": "Tested your live portfolio via public URL. Looks incredible, fast and responsive!",
+    "createdAt": "2026-09-21T17:22:49.647Z",
+    "ip": "::1"
+  },
+  {
     "id": "msg_1790009425596_683zp",
     "name": "Google Recruiter",
     "email": "recruiter@google.com",

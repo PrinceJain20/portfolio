@@ -33,6 +33,9 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
     />
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+
     <!-- Main Stylesheet -->
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -701,9 +704,19 @@
                   </li>
                 </ul>
 
-                <button onclick="openSihModal()" class="btn btn-primary">
-                  <i class="fas fa-presentation-screen"></i> Explore SmartMet AI Architecture & Deck
-                </button>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem;">
+                  <button onclick="openSihModal()" class="btn btn-primary">
+                    <i class="fas fa-presentation-screen"></i> Explore Architecture & Details
+                  </button>
+                  <a
+                    href="assets/SmartMet_AI_AlgNite_Presentation.pptx"
+                    download="SmartMet_AI_AlgNite_Presentation.pptx"
+                    class="btn btn-secondary"
+                    title="Download Official Team AlgNite SIH 2026 Presentation"
+                  >
+                    <i class="fas fa-file-powerpoint" style="color: #fb923c;"></i> Download SIH Deck (.pptx)
+                  </a>
+                </div>
               </div>
 
               <div class="sih-image">
@@ -1297,6 +1310,19 @@
           <li><strong>AI / ML:</strong> TensorFlow, ONNX Web Runtime</li>
           <li><strong>Reporting:</strong> jsPDF, JWT, Digital Evidence Store</li>
         </ul>
+        <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-card); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div style="font-size: 0.9rem; color: var(--text-muted);">
+            <i class="fas fa-file-powerpoint" style="color: #fb923c; margin-right: 0.35rem;"></i> SmartMet AI Official Presentation Deck (7.5 MB)
+          </div>
+          <a
+            href="assets/SmartMet_AI_AlgNite_Presentation.pptx"
+            download="SmartMet_AI_AlgNite_Presentation.pptx"
+            class="btn btn-primary"
+            style="font-size: 0.95rem; padding: 0.6rem 1.25rem;"
+          >
+            <i class="fas fa-download"></i> Download SIH 2026 Deck (.pptx)
+          </a>
+        </div>
       </div>
     </div>
 
