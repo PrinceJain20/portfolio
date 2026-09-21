@@ -1,0 +1,29 @@
+[
+  {
+    "id": "msg_1790009425596_683zp",
+    "name": "Google Recruiter",
+    "email": "recruiter@google.com",
+    "subject": "Software Engineering Interview",
+    "message": "Hi Prince, reviewed your LNCT academic track record, 246+ DSA solved, and SIH 2026 hackathon participation. We would love to interview you!",
+    "createdAt": "2026-09-21T16:50:25.596Z",
+    "ip": "::1"
+  },
+  {
+    "id": "msg_1790009229535_e5jmp",
+    "name": "Recruiter Jane",
+    "email": "jane@techventures.io",
+    "subject": "Software Engineering Opportunity",
+    "message": "Hi Prince, very impressed with your SIH 2026 work and DSA preparation!",
+    "createdAt": "2026-09-21T16:47:09.535Z",
+    "ip": "::1"
+  },
+  {
+    "id": "msg_initial_demo",
+    "name": "System Demo",
+    "email": "welcome@princejain.dev",
+    "subject": "Backend Connected Successfully! 🚀",
+    "message": "Welcome to Prince Jain's Portfolio API. The persistent backend message pipeline is active and ready to receive contact submissions.",
+    "createdAt": "2026-09-21T22:15:00.000Z",
+    "read": false
+  }
+]
